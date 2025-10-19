@@ -35,7 +35,7 @@ router.get('/:id', async (req, res) => {
 // @access  Private/Admin
 router.post('/', protect, authorize('admin'), async (req, res) => {
   try {
-    const { name, description, price, category, stock, image } = req.body;
+    const { name, description, price, category, stock, image, models } = req.body;
 
     const product = await Product.create({
       name,
@@ -43,7 +43,8 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
       price,
       category,
       stock,
-      image
+      image,
+      models: models || []
     });
 
     res.status(201).json(product);
@@ -68,6 +69,7 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
     product.category = req.body.category || product.category;
     product.stock = req.body.stock !== undefined ? req.body.stock : product.stock;
     product.image = req.body.image || product.image;
+    product.models = req.body.models !== undefined ? req.body.models : product.models;
 
     const updatedProduct = await product.save();
     res.json(updatedProduct);

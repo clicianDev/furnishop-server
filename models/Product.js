@@ -1,5 +1,25 @@
 const mongoose = require('mongoose');
 
+const modelVariantSchema = new mongoose.Schema({
+  modelUrl: {
+    type: String,
+    required: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  variantName: {
+    type: String,
+    required: true
+  }
+}, { _id: false });
+
 const productSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -29,6 +49,10 @@ const productSchema = new mongoose.Schema({
   image: {
     type: String,
     default: ''
+  },
+  models: {
+    type: [modelVariantSchema],
+    default: []
   },
   createdAt: {
     type: Date,
