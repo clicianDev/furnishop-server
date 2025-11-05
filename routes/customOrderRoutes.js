@@ -2,47 +2,13 @@ const express = require('express');
 const router = express.Router();
 const CustomOrder = require('../models/CustomOrder');
 const { protect, authorize } = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-// Configure multer for image upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = 'uploads/custom-orders';
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'custom-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'), false);
-  }
-};
-
-const upload = multer({ 
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit per file
-  }
-});
+const { uploadCustomOrderImages } = require('../middleware/s3Upload');
+const { deleteFromS3, extractKeyFromUrl } = require('../services/s3Service');
 
 // @route   POST /api/custom-orders
 // @desc    Create a new custom furniture order
 // @access  Private
-router.post('/', protect, upload.array('images', 5), async (req, res) => {
+router.post('/', protect, uploadCustomOrderImages.array('images', 5), async (req, res) => {
   try {
     const { furnitureType, width, height, woodType, varnishType, totalPrice, notes } = req.body;
 
@@ -51,8 +17,8 @@ router.post('/', protect, upload.array('images', 5), async (req, res) => {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
-    // Get uploaded image paths
-    const images = req.files ? req.files.map(file => file.path) : [];
+    // Get uploaded image URLs from S3
+    const images = req.files ? req.files.map(file => file.location) : [];
 
     const customOrder = new CustomOrder({
       userId: req.user.id,
@@ -176,13 +142,16 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Custom order not found' });
     }
 
-    // Delete associated images
+    // Delete associated images from S3
     if (customOrder.images && customOrder.images.length > 0) {
-      customOrder.images.forEach(imagePath => {
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
+      for (const imageUrl of customOrder.images) {
+        try {
+          const key = extractKeyFromUrl(imageUrl);
+          await deleteFromS3(key);
+        } catch (error) {
+          console.error(`Failed to delete image from S3: ${imageUrl}`, error);
         }
-      });
+      }
     }
 
     await CustomOrder.findByIdAndDelete(req.params.id);
