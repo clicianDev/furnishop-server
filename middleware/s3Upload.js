@@ -45,6 +45,9 @@ const createS3Upload = (folder) => {
 // Export pre-configured upload for custom orders
 const uploadCustomOrderImages = createS3Upload('uploads/custom-orders');
 
+// Export pre-configured upload for transaction screenshots
+const uploadTransactionScreenshots = createS3Upload('uploads/transactions');
+
 // Export pre-configured upload for models
 const uploadModels = createS3Upload('models');
 
@@ -172,6 +175,7 @@ const uploadPaymentQR = multer({
 module.exports = {
   createS3Upload,
   uploadCustomOrderImages,
+  uploadTransactionScreenshots,
   uploadModels,
   uploadTextures,
   uploadProductImage,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
 const { protect, authorize } = require('../middleware/auth');
+const { uploadTransactionScreenshots } = require('../middleware/s3Upload');
 
 // @route   GET /api/transactions
 // @desc    Get all transactions (Admin only)
@@ -26,6 +27,27 @@ router.get('/my-orders', protect, async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(transactions);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   POST /api/transactions/upload-screenshot
+// @desc    Upload transaction screenshot to S3
+// @access  Private
+router.post('/upload-screenshot', protect, uploadTransactionScreenshots.array('images', 1), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const imageUrls = req.files.map(file => file.location);
+
+    res.status(200).json({
+      message: 'Screenshot uploaded successfully',
+      imageUrls: imageUrls
+    });
+  } catch (error) {
+    console.error('Error uploading screenshot:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -58,22 +80,30 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    const { products, totalAmount, shippingAddress } = req.body;
+    const { products, totalAmount, shippingAddress, paymentMethod } = req.body;
 
     if (!products || products.length === 0) {
       return res.status(400).json({ message: 'No products in transaction' });
     }
 
-    const transaction = await Transaction.create({
+    const transactionData = {
       userId: req.user.id,
       products,
       totalAmount,
       shippingAddress,
       status: 'pending'
-    });
+    };
+
+    // Add payment method if provided
+    if (paymentMethod) {
+      transactionData.paymentMethod = paymentMethod;
+    }
+
+    const transaction = await Transaction.create(transactionData);
 
     res.status(201).json(transaction);
   } catch (error) {
+    console.error('Error creating transaction:', error);
     res.status(500).json({ message: error.message });
   }
 });
