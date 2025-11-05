@@ -51,6 +51,35 @@ const transactionSchema = new mongoose.Schema({
       required: true
     }
   },
+  paymentMethod: {
+    provider: {
+      type: String,
+      enum: ['GCash', 'PayMaya'],
+      required: false
+    },
+    referenceNumber: {
+      type: String,
+      required: false
+    },
+    senderNumber: {
+      type: String,
+      required: false,
+      validate: {
+        validator: function(v) {
+          return !v || /^\+63\d{10}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid Philippine phone number!`
+      }
+    },
+    senderName: {
+      type: String,
+      required: false
+    },
+    screenshot: {
+      type: String,
+      required: false
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -132,6 +132,43 @@ const uploadProductModel = multer({
   }
 });
 
+/**
+ * Configure multer to upload payment QR codes to S3
+ * Format: payment-qr/provider-timestamp.ext
+ */
+const uploadPaymentQR = multer({
+  storage: multerS3({
+    s3: s3Client,
+    bucket: BUCKET_NAME,
+    metadata: function (req, file, cb) {
+      cb(null, { fieldName: file.fieldname });
+    },
+    key: function (req, file, cb) {
+      const provider = req.body.serviceProvider || 'payment';
+      const timestamp = Date.now();
+      const ext = path.extname(file.originalname).toLowerCase();
+      const key = `payment-qr/${provider.toLowerCase()}-${timestamp}${ext}`;
+      cb(null, key);
+    },
+    contentType: multerS3.AUTO_CONTENT_TYPE
+  }),
+  fileFilter: (req, file, cb) => {
+    // Accept jpg, jpeg, png, and heic (iPhone format)
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.heic', '.heif'];
+    
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPG, JPEG, PNG, and HEIC/HEIF (iPhone) files are allowed for QR codes!'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit per file
+  }
+});
+
 module.exports = {
   createS3Upload,
   uploadCustomOrderImages,
@@ -139,5 +176,6 @@ module.exports = {
   uploadTextures,
   uploadProductImage,
   uploadProductModel,
+  uploadPaymentQR,
   sanitizeProductName
 };
