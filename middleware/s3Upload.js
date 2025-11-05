@@ -8,9 +8,10 @@ const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 /**
  * Configure multer to upload directly to S3
  * @param {string} folder - S3 folder path (e.g., 'uploads/custom-orders')
+ * @param {boolean} allowVideos - Whether to allow video files
  * @returns {multer.Multer}
  */
-const createS3Upload = (folder) => {
+const createS3Upload = (folder, allowVideos = false) => {
   const upload = multer({
     storage: multerS3({
       s3: s3Client,
@@ -27,15 +28,18 @@ const createS3Upload = (folder) => {
       contentType: multerS3.AUTO_CONTENT_TYPE
     }),
     fileFilter: (req, file, cb) => {
-      // Accept images only
+      // Accept images and optionally videos
       if (file.mimetype.startsWith('image/')) {
         cb(null, true);
+      } else if (allowVideos && file.mimetype.startsWith('video/')) {
+        cb(null, true);
       } else {
-        cb(new Error('Only image files are allowed!'), false);
+        const allowedTypes = allowVideos ? 'image and video files' : 'image files';
+        cb(new Error(`Only ${allowedTypes} are allowed!`), false);
       }
     },
     limits: {
-      fileSize: 5 * 1024 * 1024 // 5MB limit per file
+      fileSize: allowVideos ? 20 * 1024 * 1024 : 5 * 1024 * 1024 // 20MB for videos, 5MB for images
     }
   });
 
