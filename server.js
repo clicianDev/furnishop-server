@@ -21,6 +21,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce', {
   useNewUrlParser: true,
@@ -33,6 +36,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/transactions', require('./routes/transactionRoutes'));
+app.use('/api/custom-orders', require('./routes/customOrderRoutes'));
 
 // Basic route
 app.get('/', (req, res) => {
