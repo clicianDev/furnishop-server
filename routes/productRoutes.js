@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const { protect, authorize } = require('../middleware/auth');
+const { uploadProductImage, uploadProductModel, sanitizeProductName } = require('../middleware/s3Upload');
+const multer = require('multer');
+
+// Configure multer for handling multiple file uploads
+const uploadFields = multer().fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'modelFiles', maxCount: 10 }
+]);
 
 // @route   GET /api/products
 // @desc    Get all products
@@ -31,11 +39,17 @@ router.get('/:id', async (req, res) => {
 });
 
 // @route   POST /api/products
-// @desc    Create a new product
+// @desc    Create a new product with file uploads
 // @access  Private/Admin
 router.post('/', protect, authorize('admin'), async (req, res) => {
   try {
     const { name, description, price, category, stock, image, models } = req.body;
+
+    // Parse models if it's a string
+    let parsedModels = [];
+    if (models) {
+      parsedModels = typeof models === 'string' ? JSON.parse(models) : models;
+    }
 
     const product = await Product.create({
       name,
@@ -44,11 +58,52 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
       category,
       stock,
       image,
-      models: models || []
+      models: parsedModels
     });
 
     res.status(201).json(product);
   } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   POST /api/products/upload-image
+// @desc    Upload product image to S3
+// @access  Private/Admin
+router.post('/upload-image', protect, authorize('admin'), uploadProductImage.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    res.status(200).json({
+      message: 'Image uploaded successfully',
+      imageUrl: req.file.location,
+      key: req.file.key
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   POST /api/products/upload-model
+// @desc    Upload product 3D model to S3
+// @access  Private/Admin
+router.post('/upload-model', protect, authorize('admin'), uploadProductModel.single('model'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    res.status(200).json({
+      message: 'Model uploaded successfully',
+      modelUrl: req.file.location,
+      key: req.file.key
+    });
+  } catch (error) {
+    console.error('Error uploading model:', error);
     res.status(500).json({ message: error.message });
   }
 });
