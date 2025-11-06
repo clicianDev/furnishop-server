@@ -115,6 +115,61 @@ router.get('/profile', protect, async (req, res) => {
   }
 });
 
+// @route   PUT /api/users/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    // If password change is requested, need to select password field
+    let user;
+    if (req.body.currentPassword && req.body.newPassword) {
+      user = await User.findById(req.user.id).select('+password');
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const isMatch = await user.comparePassword(req.body.currentPassword);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+
+      // Check if new password is the same as current password
+      if (req.body.currentPassword === req.body.newPassword) {
+        return res.status(400).json({ message: 'New password must be different from current password' });
+      }
+      
+      // Set new password
+      user.password = req.body.newPassword;
+    } else {
+      user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+    }
+
+    // Update basic info
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+
+    const updatedUser = await user.save();
+    
+    // Return user without password
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Email already in use' });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET /api/users
 // @desc    Get all users (Admin only)
 // @access  Private/Admin
