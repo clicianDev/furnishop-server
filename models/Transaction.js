@@ -54,7 +54,7 @@ const transactionSchema = new mongoose.Schema({
   paymentMethod: {
     provider: {
       type: String,
-      enum: ['GCash', 'PayMaya'],
+      enum: ['GCash', 'PayMaya', 'Cash on Delivery'],
       required: false
     },
     referenceNumber: {
