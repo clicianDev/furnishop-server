@@ -86,10 +86,14 @@ router.post('/upload-media', protect, uploadRepairMedia.array('media', 5), async
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    const { orderId, orderType, description, media } = req.body;
+    const { orderId, orderType, description, media, termsAccepted } = req.body;
 
     if (!orderId || !orderType || !description) {
       return res.status(400).json({ message: 'Order ID, order type, and description are required' });
+    }
+
+    if (!termsAccepted) {
+      return res.status(400).json({ message: 'You must accept the Terms and Conditions to submit a repair request' });
     }
 
     // Verify that the order exists and belongs to the user
@@ -115,7 +119,9 @@ router.post('/', protect, async (req, res) => {
       orderId,
       orderType,
       description,
-      media: media || []
+      media: media || [],
+      termsAccepted: true,
+      termsAcceptedAt: new Date()
     });
 
     const populatedRequest = await RepairRequest.findById(repairRequest._id)

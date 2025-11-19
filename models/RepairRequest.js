@@ -34,6 +34,14 @@ const repairRequestSchema = new mongoose.Schema({
     type: String,
     maxlength: 1000
   },
+  termsAccepted: {
+    type: Boolean,
+    required: true,
+    default: false
+  },
+  termsAcceptedAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
