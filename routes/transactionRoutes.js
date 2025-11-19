@@ -86,6 +86,27 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'No products in transaction' });
     }
 
+    // Check stock availability and deduct stock
+    const Product = require('../models/Product');
+    
+    for (const item of products) {
+      const product = await Product.findById(item.productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${item.productId}` });
+      }
+      
+      if (product.stock < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+        });
+      }
+      
+      // Deduct stock
+      product.stock -= item.quantity;
+      await product.save();
+    }
+
     const transactionData = {
       userId: req.user.id,
       products,
@@ -119,7 +140,23 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
-    transaction.status = req.body.status || transaction.status;
+    const oldStatus = transaction.status;
+    const newStatus = req.body.status || transaction.status;
+
+    // If order is being cancelled, restore stock
+    if (newStatus === 'cancelled' && oldStatus !== 'cancelled') {
+      const Product = require('../models/Product');
+      
+      for (const item of transaction.products) {
+        const product = await Product.findById(item.productId);
+        if (product) {
+          product.stock += item.quantity;
+          await product.save();
+        }
+      }
+    }
+
+    transaction.status = newStatus;
 
     const updatedTransaction = await transaction.save();
     res.json(updatedTransaction);
